@@ -1,15 +1,17 @@
-#Build Stage
-FROM mcr.microsoft.com/dotnet/sdk:6.0-focal AS build
-WORKDIR /source
-COPY . .
-RUN dotnet restore "./DockerTutorial.csproj" --disable-parallel
-RUN dotnet publish "./DockerTutorial.csproj" -c release -o /app --no-restore
-
-#Serve Stage
-FROM mcr.microsoft.com/dotnet/aspnet:6.0-focal
+# syntax=docker/dockerfile:1
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
 WORKDIR /app
-COPY --from=build /app ./
-
-EXPOSE 5000
-
-ENTRYPOINT ["dotnet", "DockerTutorial.dll"]
+    
+# Copy csproj and restore as distinct layers
+COPY *.csproj ./
+RUN dotnet restore
+    
+# Copy everything else and build
+COPY ../engine/examples ./
+RUN dotnet publish -c Release -o out
+    
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
+WORKDIR /app
+COPY --from=build-env /app/out .
+ENTRYPOINT ["dotnet", "dockertutorial.dll"]
